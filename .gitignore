@@ -95,6 +95,18 @@ build/
 
 scaledown/.DS_Store
 
+# Node.js / npm / yarn
+node_modules/
+package-lock.json
+yarn.lock
+.npm
+.yarn
+
+# Next.js / Vite
+dist/
+.next/
+.vite/
+
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
 #   intended to run in multiple environments; otherwise, check them in:
