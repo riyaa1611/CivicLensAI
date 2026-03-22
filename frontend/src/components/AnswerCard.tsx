@@ -106,7 +106,7 @@ function MetricPill({
 }: {
   label: string
   value: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   highlight?: boolean
 }) {
   return (
