@@ -58,15 +58,15 @@ async def analyze_policy(content: str, title: str = "") -> dict:
                         {"role": "user", "content": prompt},
                     ],
                     "temperature": 0.3,
-                    "max_tokens": 800,
+                    "max_tokens": 2000,
                 },
             )
             resp.raise_for_status()
             data = resp.json()
-            content = data["choices"][0]["message"]["content"]
-            if content is None:
+            llm_content = data["choices"][0]["message"].get("content")
+            if llm_content is None:
                 raise ValueError("LLM returned null content")
-            raw = content.strip()
+            raw = llm_content.strip()
 
             # Strip markdown code fences if present
             if raw.startswith("```"):

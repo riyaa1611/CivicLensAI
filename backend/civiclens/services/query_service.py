@@ -142,7 +142,8 @@ async def _call_llm(prompt: str) -> str:
             )
             resp.raise_for_status()
             data = resp.json()
-            return data["choices"][0]["message"]["content"].strip()
+            llm_content = data["choices"][0]["message"].get("content") or ""
+            return llm_content.strip()
 
     except Exception as e:
         logger.error(f"LLM call failed: {e}")

@@ -263,3 +263,96 @@ async def trigger_ingestion(background_tasks: BackgroundTasks):
     """Manually trigger a policy ingestion run (for development/testing)."""
     background_tasks.add_task(run_ingestion)
     return {"status": "ingestion_started", "message": "Ingestion running in background"}
+
+
+# ---------------------------------------------------------------------------
+# Re-summarize policies missing summaries (admin)
+# ---------------------------------------------------------------------------
+
+@router.post("/admin/rescan")
+async def rescan_summaries(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Re-run LLM analysis on all policies with missing or placeholder summaries."""
+    missing = db.query(Policy).filter(
+        (Policy.summary == None) |
+        (Policy.summary == "Summary not available.") |
+        (Policy.summary == "Processing...")
+    ).all()
+
+    count = len(missing)
+    if count == 0:
+        return {"status": "nothing_to_do", "count": 0}
+
+    jobs = [(p.id, p.raw_content or "", p.title, p.source) for p in missing]
+    background_tasks.add_task(_rescan_policies, jobs)
+
+    return {"status": "rescan_started", "count": count, "message": f"Re-summarizing {count} policies in background"}
+
+
+async def _rescan_policies(jobs: list) -> None:
+    """Background task: re-analyze and re-embed policies with missing summaries."""
+    from ..db.database import db_session
+    import asyncio
+
+    for policy_id, content, title, source in jobs:
+        try:
+            if not content or len(content) < 50:
+                logger.warning(f"Skipping {title!r}: no raw content")
+                continue
+
+            analysis = await analyze_policy(content, title)
+            tags = await classify_policy(content, title)
+
+            with db_session() as db:
+                policy = db.query(Policy).filter(Policy.id == policy_id).first()
+                if policy:
+                    policy.summary = analysis["summary"]
+                    policy.key_clauses = analysis["key_clauses"]
+                    policy.tags = tags
+
+            try:
+                await _embed_and_store(policy_id, content, title, source or "Unknown")
+                with db_session() as db:
+                    policy = db.query(Policy).filter(Policy.id == policy_id).first()
+                    if policy:
+                        policy.is_indexed = True
+            except Exception as embed_err:
+                logger.warning(f"Embedding failed for {title!r} (summary saved): {embed_err}")
+
+            logger.info(f"Rescan complete: {title[:60]}")
+            await asyncio.sleep(1)  # avoid rate limiting
+
+        except Exception as e:
+            logger.error(f"Rescan failed for {title!r}: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Re-embed all policies (admin) — use after changing embedding model
+# ---------------------------------------------------------------------------
+
+@router.post("/admin/reindex")
+async def reindex_all(background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Re-embed all policies into the vector store (run after changing embedding model)."""
+    policies = db.query(Policy).filter(Policy.raw_content != None).all()
+    jobs = [(p.id, p.raw_content or "", p.title, p.source or "Unknown") for p in policies
+            if p.raw_content and len(p.raw_content) >= 50]
+    count = len(jobs)
+    background_tasks.add_task(_reindex_policies, jobs)
+    return {"status": "reindex_started", "count": count, "message": f"Re-embedding {count} policies in background"}
+
+
+async def _reindex_policies(jobs: list) -> None:
+    """Background task: re-embed all policies with the current embedding model."""
+    from ..db.database import db_session
+    import asyncio
+
+    for policy_id, content, title, source in jobs:
+        try:
+            await _embed_and_store(policy_id, content, title, source)
+            with db_session() as db:
+                policy = db.query(Policy).filter(Policy.id == policy_id).first()
+                if policy:
+                    policy.is_indexed = True
+            logger.info(f"Reindexed: {title[:60]}")
+        except Exception as e:
+            logger.warning(f"Reindex failed for {title!r}: {e}")
+        await asyncio.sleep(0.1)

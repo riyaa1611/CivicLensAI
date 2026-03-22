@@ -91,6 +91,15 @@ build/
 *.pyc
 .DS_Store
 
+# Runtime data — generated at startup, not source code
+*.db
+*.db-shm
+*.db-wal
+faiss_index.bin
+faiss_meta.pkl
+*.pkl
+*.bin
+
 .DS_Store
 
 scaledown/.DS_Store

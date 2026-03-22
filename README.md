@@ -20,11 +20,12 @@ CivicLens is an AI-powered civic intelligence platform that makes Indian governm
 **Backend**
 - [FastAPI](https://fastapi.tiangolo.com/) — REST API framework
 - SQLite via SQLAlchemy — relational storage for policies and query logs
-- [Pinecone](https://www.pinecone.io/) — cloud vector database (FAISS fallback for local use)
-- `BAAI/bge-large-en-v1.5` — 1024-dim sentence embeddings via `sentence-transformers`
+- [FAISS](https://github.com/facebookresearch/faiss) — local vector index (Pinecone cloud optional)
+- `BAAI/bge-small-en-v1.5` — 384-dim sentence embeddings via `sentence-transformers`
+- [ScaleDown](https://scaledown.xyz) — context compression API (optional, reduces LLM token usage)
 - [APScheduler](https://apscheduler.readthedocs.io/) — background ingestion scheduler
 - [PyMuPDF](https://pymupdf.readthedocs.io/) — PDF text extraction
-- GPT-4o mini via [OpenRouter](https://openrouter.ai/) — LLM for Q&A and summarization
+- LLM via [OpenRouter](https://openrouter.ai/) — configurable model for Q&A and summarization
 
 **Frontend**
 - [React 18](https://react.dev/) + TypeScript
@@ -71,19 +72,23 @@ CivicLens_V2/
 
 - Python 3.10+
 - Node.js 18+
-- A [Pinecone](https://www.pinecone.io/) account (free tier works)
-- An [OpenRouter](https://openrouter.ai/) API key
+- An [OpenRouter](https://openrouter.ai/) API key (required)
+- A [Pinecone](https://www.pinecone.io/) account (optional — FAISS used by default)
+- A [ScaleDown](https://scaledown.xyz) API key (optional — enables compression analytics)
 
 ### Environment Setup
 
-Create a `.env` file in the project root:
+Copy the example env file and fill in your values:
 
-```env
-OPENROUTER_API_KEY=your_openrouter_api_key
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_INDEX_NAME=civiclens-policies
-PINECONE_INDEX_HOST=your_pinecone_index_host
+```bash
+cp .env.example .env
 ```
+
+Open `.env` and set at minimum:
+- `OPENROUTER_API_KEY` — get one free at [openrouter.ai/keys](https://openrouter.ai/keys)
+- All other keys are optional (Pinecone falls back to FAISS, ScaleDown compression is disabled if unset)
+
+See [.env.example](.env.example) for a full list of variables with descriptions.
 
 ### Backend
 
@@ -116,12 +121,15 @@ start_frontend.bat
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/policies` | List all ingested policies |
-| `GET` | `/api/policy/{id}` | Get a single policy by ID |
-| `POST` | `/api/query` | Ask a question, returns answer + sources |
-| `POST` | `/api/upload` | Upload a policy PDF for ingestion |
-| `POST` | `/api/ingest` | Trigger manual ingestion run |
-| `GET` | `/api/dashboard` | System metrics and stats |
+| `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/policies` | List all ingested policies |
+| `GET` | `/api/v1/policy/{id}` | Get a single policy by ID |
+| `POST` | `/api/v1/query` | Ask a question, returns answer + sources |
+| `POST` | `/api/v1/upload` | Upload a policy PDF for ingestion |
+| `POST` | `/api/v1/ingest` | Trigger manual ingestion run |
+| `GET` | `/api/v1/dashboard` | System metrics and compression stats |
+| `POST` | `/api/v1/admin/rescan` | Re-summarize policies with missing summaries |
+| `POST` | `/api/v1/admin/reindex` | Re-embed all policies into the vector store |
 
 Full interactive docs available at `http://localhost:8000/docs`.
 

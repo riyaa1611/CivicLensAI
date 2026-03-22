@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings
 
 # Add ScaleDown root to sys.path so it can be imported as a library
 _SCALEDOWN_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 if _SCALEDOWN_ROOT not in sys.path:
     sys.path.insert(0, _SCALEDOWN_ROOT)
@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./civiclens.db"
 
     # OpenRouter / LLM
-    openrouter_api_key: str = "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"
-    llm_model: str = "openai/gpt-4o-mini"
+    openrouter_api_key: str = ""
+    llm_model: str = "openai/gpt-oss-120b"
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     # Pinecone (optional)
