@@ -149,5 +149,3 @@ Full interactive docs available at `http://localhost:8000/docs`.
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
-
-This is Sakshi's update!
