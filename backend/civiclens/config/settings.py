@@ -44,7 +44,8 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
-        "https://civiclens.vercel.app",  # Add your production Vercel URL here
+        "https://civiclens-ai-chi.vercel.app",
+        "https://civiclens.vercel.app",  # Keeping old one just in case
     ]
 
     model_config = {
