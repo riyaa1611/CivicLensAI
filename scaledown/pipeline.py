@@ -1,36 +1,18 @@
 from typing import List, Tuple, Union, Optional
-from scaledown.optimizer.base import BaseOptimizer
-from scaledown.compressor.base import BaseCompressor
-from scaledown.types import OptimizedContext, CompressedPrompt
-from scaledown.types import PipelineResult, StepMetadata
-from scaledown.types.metrics import count_tokens
+from .optimizer.base import BaseOptimizer
+from .compressor.base import BaseCompressor
+from .types import OptimizedContext, CompressedPrompt
+from .types import PipelineResult, StepMetadata
+from .types.metrics import count_tokens
 
 class Pipeline:
     """
     Pipeline for chaining optimizers and compressors.
-    
-    Example
-    -------
-    >>> from scaledown.pipeline import Pipeline
-    >>> from scaledown.optimizer import HasteOptimizer
-    >>> from scaledown.compressor import ScaleDownCompressor
-    >>> 
-    >>> pipe = Pipeline([
-    ...     ('haste', HasteOptimizer()),
-    ...     ('compressor', ScaleDownCompressor(model="gpt-4o"))
-    ... ])
-    >>> 
-    >>> result = pipe.run(context=code, query="Add type hints", prompt="Explain changes")
     """
     
     def __init__(self, steps: List[Tuple[str, Union[BaseOptimizer, BaseCompressor]]]):
         """
         Initialize pipeline with ordered steps.
-        
-        Parameters
-        ----------
-        steps : List[Tuple[str, Union[BaseOptimizer, BaseCompressor]]]
-            List of (name, transformer) tuples
         """
         self.steps = steps
         self._validate_steps()
@@ -40,7 +22,6 @@ class Pipeline:
         if not self.steps:
             raise ValueError("Pipeline must have at least one step")
         
-        # Check that optimizers come before compressors
         seen_compressor = False
         for name, step in self.steps:
             if isinstance(step, BaseCompressor):
@@ -50,6 +31,7 @@ class Pipeline:
                     f"Optimizer '{name}' cannot come after a compressor. "
                     "Pipeline order must be: optimizers -> compressors"
                 )
+
     def run(self, context: str, **kwargs) -> PipelineResult:
         current_context = context
         original_context = context
@@ -119,22 +101,5 @@ class Pipeline:
 def make_pipeline(steps) -> Pipeline:
     """
     Helper function to create a pipeline.
-    
-    Parameters
-    ----------
-    *steps : tuples
-        Variable number of (name, transformer) tuples
-        
-    Returns
-    -------
-    Pipeline
-        Configured pipeline
-        
-    Example
-    -------
-    >>> pipe = make_pipeline(
-    ...     ('haste', HasteOptimizer()),
-    ...     ('compress', ScaleDownCompressor())
-    ... )
     """
     return Pipeline(steps)

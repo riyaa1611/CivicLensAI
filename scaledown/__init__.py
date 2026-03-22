@@ -2,22 +2,22 @@ import os
 from typing import Optional
 
 # Configuration
-from scaledown.config import set_api_key, get_api_key
+from .config import set_api_key, get_api_key
 
 # Core Components
-from scaledown.pipeline import Pipeline, make_pipeline
+from .pipeline import Pipeline, make_pipeline
 # HasteOptimizer is optional, import from scaledown.optimizer if needed
-from scaledown.compressor.scaledown_compressor import ScaleDownCompressor
+from .compressor.scaledown_compressor import ScaleDownCompressor
 
 # Types & Exceptions
-from scaledown.types import (
+from .types import (
     CompressedPrompt,
     OptimizedContext,
     PipelineResult,
     StepMetadata
 )
 
-from scaledown.exceptions import (
+from .exceptions import (
     ScaleDownError,
     AuthenticationError,
     APIError

@@ -3,12 +3,11 @@ import ast
 import logging
 import time
 from typing import List, Dict, Any, Optional, Union
-from pathlib import Path
 
-from scaledown.optimizer.base import BaseOptimizer
-from scaledown.types import OptimizedContext
-from scaledown.types.metrics import OptimizerMetrics, count_tokens
-from scaledown.exceptions import OptimizerError
+from .base import BaseOptimizer
+from ..types import OptimizedContext
+from ..types.metrics import OptimizerMetrics, count_tokens
+from ..exceptions import OptimizerError
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,6 @@ class SemanticOptimizer(BaseOptimizer):
         self.model_load_failed = False
 
     def _lazy_load_deps(self):
-        """Lazily import heavy ML dependencies."""
         if self._model is not None or self.model_load_failed:
             return
 
@@ -48,13 +46,11 @@ class SemanticOptimizer(BaseOptimizer):
             self._faiss = faiss
             self._numpy = np
         except Exception as e:
-            # Catch any error during model loading (Network, File missing, etc.)
             logger.error(f"Failed to load semantic model: {e}")
             logger.warning("Falling back to pass-through mode.")
             self.model_load_failed = True
 
     def _extract_semantic_units(self, file_path: str) -> List[Dict[str, Any]]:
-        """Extracts functions and classes using AST."""
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 source = f.read()
@@ -62,7 +58,6 @@ class SemanticOptimizer(BaseOptimizer):
             tree = ast.parse(source)
             units = []
 
-            # Add the full file context
             units.append({
                 "type": "file",
                 "name": os.path.basename(file_path),
@@ -70,7 +65,6 @@ class SemanticOptimizer(BaseOptimizer):
                 "metadata": {"file_name": os.path.basename(file_path)}
             })
 
-            # Walk AST for Classes and Functions
             for node in ast.walk(tree):
                 if isinstance(node, ast.ClassDef):
                     units.append({
@@ -98,31 +92,24 @@ class SemanticOptimizer(BaseOptimizer):
         max_tokens: Optional[int] = None,
         **kwargs
     ) -> OptimizedContext:
-        """
-        Embeds the code in `file_path` and returns the segments most relevant to `query`.
-        """
         start_time = time.time()
 
         if not file_path:
-            logger.warning("SemanticOptimizer requires 'file_path'. Returning original.")
             orig_tokens = count_tokens(str(context), model=self.target_model)
             return self._create_fallback_context(str(context), orig_tokens, start_time, "missing_filepath")
 
         self._lazy_load_deps()
         
-        # Extract Chunks
         units = self._extract_semantic_units(file_path)
         full_source = units[0]["code"] if units and units[0]["type"] == "file" else ""
         orig_tokens = count_tokens(full_source, model=self.target_model)
 
-        # whether model fails to load
         if self.model_load_failed:
             return self._create_fallback_context(full_source, orig_tokens, start_time, "model_load_failed")
         
         if not units:
              return self._create_fallback_context("", orig_tokens, start_time, "no_units")
 
-        # Embed Chunks
         valid_units = [u for u in units if u.get("code") and u.get("type") != "file"]
         
         if not valid_units:
@@ -131,12 +118,10 @@ class SemanticOptimizer(BaseOptimizer):
         codes = [u["code"] for u in valid_units]
         embeddings = self._model.encode(codes)
 
-        # Build Index
         d = embeddings.shape[1]
         index = self._faiss.IndexFlatL2(d)
         index.add(self._numpy.array(embeddings, dtype=self._numpy.float32))
 
-        # Embed Query & Search
         if not query:
              query = "main logic"
 
@@ -148,7 +133,6 @@ class SemanticOptimizer(BaseOptimizer):
             k=k_search
         )
 
-        # Construct Result
         results = []
         for idx in indices[0]:
             if idx != -1:
@@ -156,7 +140,6 @@ class SemanticOptimizer(BaseOptimizer):
 
         final_content = "\n\n# ... [Semantic Context Search Result] ...\n\n".join(results)
         
-        # Metrics Calculation
         opt_tokens = count_tokens(final_content, model=self.target_model)
         latency = (time.time() - start_time) * 1000
         ratio = opt_tokens / orig_tokens if orig_tokens > 0 else 0.0
@@ -175,7 +158,6 @@ class SemanticOptimizer(BaseOptimizer):
         )
 
     def _create_fallback_context(self, content, tokens, start_time, reason):
-        """Helper to create consistent fallback response."""
         return OptimizedContext(
             content=content,
             metrics=OptimizerMetrics(

@@ -1,5 +1,5 @@
 """
-HASTE optimizer integration for scaledown.
+HASTE (Hybrid AST-guided Selection with Token-bounded Extraction) optimizer integration for scaledown.
 Uses the local HasteContext library for code context retrieval.
 """
 from typing import Union, List, Optional, Dict, Any
@@ -29,21 +29,13 @@ class HasteOptimizer(BaseOptimizer):
     Parameters
     ----------
     top_k : int, default=6
-        Number of top functions/classes to retrieve
     prefilter : int, default=300
-        Size of candidate pool before reranking
     bfs_depth : int, default=1
-        BFS expansion depth over call graph
     max_add : int, default=12
-        Maximum nodes added during BFS expansion
     semantic : bool, default=False
-        Enable semantic reranking with OpenAI embeddings
     sem_model : str, default='text-embedding-3-small'
-        OpenAI embedding model for semantic search
     hard_cap : int, default=1200
-        Hard token cap for output
     soft_cap : int, default=1800
-        Soft token cap for output
     """
     
     def __init__(
@@ -85,24 +77,6 @@ class HasteOptimizer(BaseOptimizer):
     ) -> Union[OptimizedContext, List[OptimizedContext]]:
         """
         Optimize code context using local HASTE library.
-        
-        Parameters
-        ----------
-        context : str or List[str]
-            Source code content (currently expects file path in file_path param)
-        query : str
-            Query to guide context retrieval (e.g., "find training loop")
-        max_tokens : int, optional
-            Maximum token budget (uses hard_cap if not specified)
-        file_path : str, optional
-            Path to Python file to analyze (required for HASTE)
-        **kwargs : dict
-            Additional HASTE parameters
-            
-        Returns
-        -------
-        OptimizedContext
-            Optimized context with relevant code and metrics
         """
         start_time = time.time()
         if query is None:
@@ -115,12 +89,9 @@ class HasteOptimizer(BaseOptimizer):
         if not query:
             raise ValueError("Query is required for HASTE optimization")
 
-        # 3. Handle string input without file_path by creating a temp file
         temp_path = None
         if not file_path:
-            # If context is a string, we can try to write it to a temp file
             if isinstance(context, str) and len(context.strip()) > 0:
-                # Write to temp file
                 with tempfile.NamedTemporaryFile(
                     mode='w',
                     suffix='.py',
@@ -135,9 +106,7 @@ class HasteOptimizer(BaseOptimizer):
                     "file_path is required for HASTE optimization, or context must be a valid code string."
                 )
 
-
         try:
-            # Call HASTE's select_from_file function
             result = select_from_file(
                 path=file_path,
                 query=query,
@@ -153,11 +122,9 @@ class HasteOptimizer(BaseOptimizer):
             
             latency_ms = int((time.time() - start_time) * 1000)
             
-            # Extract optimized code
             optimized_content = result.get('code', '')
             nodes = result.get('nodes', [])
             
-            # Estimate original tokens
             original_tokens = 0
             if file_path and os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -186,6 +153,5 @@ class HasteOptimizer(BaseOptimizer):
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.unlink(temp_path)
-# Alias for backward compatibility
+
 HasteContext = HasteOptimizer
-    

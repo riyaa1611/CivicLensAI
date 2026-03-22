@@ -1,49 +1,50 @@
-"""CivicLens application settings."""
 import os
 import sys
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+# Load .env file explicitly
+load_dotenv()
 
 # Add ScaleDown root to sys.path so it can be imported as a library
 _SCALEDOWN_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 if _SCALEDOWN_ROOT not in sys.path:
     sys.path.insert(0, _SCALEDOWN_ROOT)
 
 
 class Settings(BaseSettings):
-    # Database
-    database_url: str = "sqlite:///./civiclens.db"
+    # Database (Defaults to SQLite for local development, override with NEON_URL in production)
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./civiclens.db")
 
     # OpenRouter / LLM
-    openrouter_api_key: str = "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"
-    llm_model: str = "openai/gpt-4o-mini"
+    openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
+    llm_model: str = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
-    # Pinecone (optional)
-    pinecone_api_key: Optional[str] = None
-    pinecone_index_name: str = "civiclens-policies"
-    pinecone_index_host: Optional[str] = None
+    # Pinecone (optional, but recommended for cloud)
+    pinecone_api_key: Optional[str] = os.getenv("PINECONE_API_KEY")
+    pinecone_index_name: str = os.getenv("PINECONE_INDEX_NAME", "civiclens-policies")
+    pinecone_index_host: Optional[str] = os.getenv("PINECONE_INDEX_HOST")
 
     # ScaleDown (optional)
-    scaledown_api_key: Optional[str] = None
+    scaledown_api_key: Optional[str] = os.getenv("SCALEDOWN_API_KEY")
 
     # Embeddings
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
 
     # Ingestion
-    ingestion_interval_hours: int = 6
+    ingestion_interval_hours: int = int(os.getenv("INGESTION_INTERVAL_HOURS", "6"))
 
     # CORS
     cors_origins: List[str] = [
         "http://localhost:5173",
         "http://localhost:5174",
-        "http://localhost:5175",
         "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
+        "https://civiclens.vercel.app",  # Add your production Vercel URL here
     ]
 
     model_config = {
